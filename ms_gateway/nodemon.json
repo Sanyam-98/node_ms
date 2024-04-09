@@ -1,0 +1,18 @@
+{
+  "watch": [
+    "bin",
+    "config",
+    "helpers",
+    "loaders",
+    "modules",
+    "public",
+    "routes",
+    "schedulers",
+    "scripts",
+    "test",
+    "views",
+    "app.js"
+  ],
+  "ext": "js, json",
+  "ignore": ["node_modules/*", "uploads/*"]
+}

@@ -1,0 +1,132 @@
+#!/usr/bin/env node
+
+require('dotenv').config({ path: process.env.ENVCONFIG || '.env' });
+
+const http = require('http');
+const app = require('../app');
+const config = require('../config/app.config');
+const logger = require('../helpers/logger.helper');
+
+let gatewayServer;
+const { appPort, appName, env } = config;
+
+/**
+ * @description common method to shutdown server on described below signals
+ */
+const shutdownServer = () => {
+  logger.error(
+    'Received kill singal to gracefully shutdown a server in SIGTERM/SIGINT'
+  );
+  gatewayServer.close(() => {
+    logger.error('Gracefully shutdown server');
+    process.exit(0);
+  });
+  setTimeout(() => {
+    logger.error(
+      'All remaining pending unclosed connections should shutdown forcefully.'
+    );
+    process.exit(0);
+  }, 5000);
+};
+
+const gatewayApp = app.bootstrap();
+
+gatewayApp.set('port', appPort);
+
+/**
+ * @description Create HTTP server.
+ */
+gatewayServer = http.createServer(gatewayApp);
+
+/**
+ * @description Event listener for HTTP server "error" event.
+ */
+const onError = (error) => {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+  const bind = typeof port === 'string' ? `Pipe ${appPort}` : `Port ${appPort}`;
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      logger.error(`${bind} requires elevated privileges`);
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      logger.error(`${bind} is already in use`);
+      process.exit(1);
+      break;
+    default:
+      logger.error(error);
+      throw error;
+  }
+};
+
+/**
+ * @description Event HTTP server "listening" event.
+ */
+const onListening = () => {
+  const addr = gatewayServer.address();
+  const bind = typeof addr === 'string' ? `pipe ${addr}` : `port ${addr.port}`;
+  logger.info(`${appName} [${env}] is running on ${bind}`);
+};
+
+/**
+ * @description Listen on provided port, on all network interfaces.
+ */
+gatewayServer.listen(appPort);
+gatewayServer.on('error', onError);
+gatewayServer.on('listening', onListening);
+
+process
+  .on('SIGINT', () => {
+    /**
+     * SIGTERM and SIGINT have default handlers on non-Windows platforms that resets
+     * the terminal mode before exiting with code 128 + signal number.
+     * If one of these signals has a listener installed, its default behavior will
+     * be removed (Node.js will no longer exit).
+     */
+    // logger.info('CLOSING [SIGINT]');
+    shutdownServer();
+  })
+  .on('SIGTERM', () => {
+    /**
+     * SIGTERM is used to cause a program termination.
+     * It is a way to politely ask a program to terminate.
+     * The program can either handle this signal, clean up resources and then exit,
+     * or it can ignore the signal.
+     */
+    // logger.info('CLOSING [SIGTERM]');
+    shutdownServer();
+  })
+  .on('SIGTSTP', () => {
+    // logger.info('CLOSING [SIGTSTP]');
+    shutdownServer();
+  })
+  .on('SIGTSTOP', () => {
+    // logger.info('CLOSING [SIGTSTOP]');
+    shutdownServer();
+  })
+  .on('SIGHUP', () => {
+    // logger.info('CLOSING [SIGHUP]');
+    shutdownServer();
+  })
+  .on('SIGQUIT', () => {
+    // logger.info('CLOSING [SIGQUIT]');
+    shutdownServer();
+  })
+  .on('SIGABRT', () => {
+    // logger.info('CLOSING [SIGABRT]');
+    shutdownServer();
+  })
+  // Start reading from stdin so we don't exit.
+  .on('unhandledRejection', (error) => {
+    logger.error(error);
+    // logger.error('unhandledRejection');
+    throw error;
+  })
+  .on('uncaughtException', (error) => {
+    logger.error(error);
+    // logger.error(`uncaughtException ${error}`);
+    process.exit(1);
+  });
